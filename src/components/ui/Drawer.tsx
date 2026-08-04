@@ -1,38 +1,71 @@
-import type { MouseEventHandler } from "react";
+
 import { X } from "lucide-react";
 import { PrimaryButton } from "./SectionHeader";
+import { FieldProps, DrawerProps } from "../../types";
 
-interface FieldProps {
-  label: string;
-  placeholder?: string;
-}
 
-export function Field({ label, placeholder }: FieldProps) {
+
+export function Field({  
+  label,
+  type = "text",
+  placeholder,
+  options = []
+}: FieldProps) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-[12px] font-medium text-neutral-600">
-        {label}
-      </span>
-      <input
-        placeholder={placeholder}
-        className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
-      />
-    </label>
+    
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{label}</label>
+
+      {type === "textarea" && (
+        <textarea
+          placeholder={placeholder}
+          className="w-full rounded-md border p-2"
+        />
+      )}
+
+      {type === "select" && (
+        <select className="w-full rounded-md border p-2">
+          <option value="">Select...</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {type === "file" && (
+        <input
+          type="file"
+          className="w-full rounded-md border p-2"
+        />
+      )}
+
+      {type === "checkbox" && (
+        <input
+          type="checkbox"
+          className="h-4 w-4"
+        />
+      )}
+
+      {type === "text" && (
+        <input
+          type="text"
+          placeholder={placeholder}
+          className="w-full rounded-md border p-2"
+        />
+      )}
+    </div>
   );
+ 
 }
 
-interface DrawerProps {
-  open: boolean;
-  onClose: MouseEventHandler<HTMLButtonElement | HTMLDivElement>;
-  title: string;
-  fields: string[];
-}
 
 export default function Drawer({
   open,
   onClose,
   title,
-  fields,
+  fields
 }: DrawerProps) {
   if (!open) return null;
 
@@ -61,10 +94,13 @@ export default function Drawer({
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {fields.map((field) => (
             <Field
-              key={field}
-              label={field}
-              placeholder={`Enter ${field.toLowerCase()}`}
-            />
+      key={field.label}
+      label={field.label}
+      type={field.type}
+      placeholder={field.placeholder}
+      options={field.options}
+      value={field.value}
+    />
           ))}
         </div>
 

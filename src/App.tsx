@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import TopBar from "./components/layout/TopBar";
 import Sidebar from "./components/layout/Sidebar";
 import Drawer from "./components/ui/Drawer";
@@ -8,45 +8,8 @@ import Vocabulary from "./components/sections/Vocabulary";
 import MediaLibrary from "./components/sections/MediaLibrary";
 import UsersSection from "./components/sections/Users";
 import SettingsSection from "./components/sections/Settings";
-
-const DRAWER_CONFIG = {
-  cities: {
-    title: "Create city",
-    fields: [
-      "Name",
-      "Country",
-      "Level number",
-      "Description",
-      "Cover image",
-    ],
-  },
-  vocabulary: {
-    title: "Add vocabulary",
-    fields: [
-      "City",
-      "Word",
-      "Pronunciation",
-      "Image",
-      "Audio",
-    ],
-  },
-  media: {
-    title: "Upload media",
-    fields: [
-      "File",
-      "Type",
-      "Description",
-    ],
-  },
-} as const;
-
-type Section =
-  | "overview"
-  | "cities"
-  | "vocabulary"
-  | "media"
-  | "users"
-  | "settings";
+import { DRAWER_CONFIG } from "./lib/drawerConfig";
+import { Section } from "./types";
 
 type DrawerType = keyof typeof DRAWER_CONFIG;
 
@@ -54,7 +17,7 @@ export default function App() {
   const [active, setActive] = useState<Section>("overview");
   const [drawer, setDrawer] = useState<DrawerType | null>(null);
 
-  const drawerConfig = useMemo(() => DRAWER_CONFIG, []);
+  const currentDrawer = drawer ? DRAWER_CONFIG[drawer] : null;
 
   return (
     <div className="flex h-screen w-full flex-col bg-white font-sans text-neutral-900 antialiased">
@@ -92,8 +55,8 @@ export default function App() {
       <Drawer
         open={drawer !== null}
         onClose={() => setDrawer(null)}
-        title={drawer ? drawerConfig[drawer].title : ""}
-        fields={drawer ? [...drawerConfig[drawer].fields] : []}
+        title={currentDrawer?.title ?? ""}
+        fields={currentDrawer?.fields ?? []}
       />
     </div>
   );
