@@ -1,3 +1,4 @@
+//Additional types for the project
 import type { MouseEventHandler } from "react";
 
 
