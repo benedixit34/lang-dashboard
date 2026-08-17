@@ -10,12 +10,31 @@ import UsersSection from "./components/sections/Users";
 import SettingsSection from "./components/sections/Settings";
 import { DRAWER_CONFIG } from "./lib/drawerConfig";
 import { Section } from "./types";
+import LoginPage from "./pages/LoginPage";
 
 type DrawerType = keyof typeof DRAWER_CONFIG;
 
 export default function App() {
   const [active, setActive] = useState<Section>("overview");
   const [drawer, setDrawer] = useState<DrawerType | null>(null);
+
+  const [authenticated, setAuthenticated] = useState(false);
+
+  if (!authenticated) {
+    return (
+      <LoginPage
+        onSuccess={(result) => {
+          console.log("Logged in:", result);
+
+          localStorage.setItem("token", result.token);
+          setAuthenticated(true);
+        }}
+        onSwitchToSignup={() => {
+          console.log("Switch to signup");
+        }}
+      />
+    );
+  }
 
   const currentDrawer = drawer ? DRAWER_CONFIG[drawer] : null;
 
