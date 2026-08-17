@@ -23,6 +23,7 @@ export default function App() {
   if (!authenticated) {
     return (
       <LoginPage
+      
         onSuccess={(result) => {
           console.log("Logged in:", result);
 

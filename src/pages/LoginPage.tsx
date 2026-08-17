@@ -1,20 +1,36 @@
-import React, { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 // Point this at wherever the leximatch-api server is running.
-// In a real project, pull this from an env var instead (e.g. import.meta.env.VITE_API_URL).
+// In production, use an environment variable instead.
 const API_BASE_URL = "http://localhost:4000";
 
-/**
- * @param {(result: { user: object, token: string }) => void} [onSuccess] - called after a successful login
- * @param {() => void} [onSwitchToSignup] - called when the person clicks "Sign up"
- */
-export default function LoginPage({ onSuccess, onSwitchToSignup }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+interface User {
+  id?: number | string;
+  email?: string;
+  name?: string;
+  [key: string]: unknown;
+}
 
-  const handleSubmit = async (e) => {
+interface LoginResponse {
+  user: User;
+  token: string;
+}
+
+interface LoginPageProps {
+  onSuccess?: (result: LoginResponse) => void;
+  onSwitchToSignup?: () => void;
+}
+
+export default function LoginPage({
+  onSuccess,
+  onSwitchToSignup,
+}: LoginPageProps) {
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
@@ -24,22 +40,44 @@ export default function LoginPage({ onSuccess, onSwitchToSignup }) {
     }
 
     setLoading(true);
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       });
 
-      const body = await res.json().catch(() => null);
+      const body = (await res.json().catch(() => null)) as
+        | LoginResponse
+        | { error?: string }
+        | null;
 
       if (!res.ok) {
-        throw new Error(body?.error || "Invalid email or password.");
+        const message =
+          body && "error" in body && body.error
+            ? body.error
+            : "Invalid email or password.";
+
+        throw new Error(message);
       }
 
-      onSuccess?.(body); // { user, token }
-    } catch (err) {
-      setError(err.message || "Something went wrong. Try again.");
+      if (!body || !("user" in body) || !("token" in body)) {
+        throw new Error("Invalid response from the server.");
+      }
+
+      onSuccess?.(body);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -52,15 +90,25 @@ export default function LoginPage({ onSuccess, onSwitchToSignup }) {
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-950 text-[15px] font-bold text-white">
             L
           </div>
+
           <h1 className="mt-4 text-[17px] font-semibold tracking-tight text-neutral-900">
             Log in to LexiMatch
           </h1>
-          <p className="mt-1 text-[13px] text-neutral-500">German A1 admin dashboard</p>
+
+          <p className="mt-1 text-[13px] text-neutral-500">
+            German A1 admin dashboard
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm"
+        >
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-medium text-neutral-600">Email</span>
+            <span className="mb-1.5 block text-[12px] font-medium text-neutral-600">
+              Email
+            </span>
+
             <input
               type="email"
               value={email}
@@ -72,7 +120,10 @@ export default function LoginPage({ onSuccess, onSwitchToSignup }) {
           </label>
 
           <label className="mt-4 block">
-            <span className="mb-1.5 block text-[12px] font-medium text-neutral-600">Password</span>
+            <span className="mb-1.5 block text-[12px] font-medium text-neutral-600">
+              Password
+            </span>
+
             <input
               type="password"
               value={password}
@@ -83,7 +134,11 @@ export default function LoginPage({ onSuccess, onSwitchToSignup }) {
             />
           </label>
 
-          {error && <p className="mt-3 text-[12px] font-medium text-red-600">{error}</p>}
+          {error && (
+            <p className="mt-3 text-[12px] font-medium text-red-600">
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
