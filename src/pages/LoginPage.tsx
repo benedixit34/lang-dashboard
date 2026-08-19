@@ -1,23 +1,9 @@
-import { useState, type FormEvent } from "react";
-
-// Point this at wherever the leximatch-api server is running.
-// In production, use an environment variable instead.
-const API_BASE_URL = "http://localhost:4000";
-
-interface User {
-  id?: number | string;
-  email?: string;
-  name?: string;
-  [key: string]: unknown;
-}
-
-interface LoginResponse {
-  user: User;
-  token: string;
-}
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { login, type AuthResponse } from "../data/api"; 
 
 interface LoginPageProps {
-  onSuccess?: (result: LoginResponse) => void;
+  onSuccess?: (result: AuthResponse) => void;
   onSwitchToSignup?: () => void;
 }
 
@@ -27,61 +13,37 @@ export default function LoginPage({
 }: LoginPageProps) {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [error, setError] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string>("");
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: (result) => {
+      onSuccess?.(result);
+    },
+  });
+
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
+    setFormError("");
 
     if (!email.trim() || !password.trim()) {
-      setError("Enter an email and password to continue.");
+      setFormError("Enter an email and password to continue.");
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-        }),
-      });
-
-      const body = (await res.json().catch(() => null)) as
-        | LoginResponse
-        | { error?: string }
-        | null;
-
-      if (!res.ok) {
-        const message =
-          body && "error" in body && body.error
-            ? body.error
-            : "Invalid email or password.";
-
-        throw new Error(message);
-      }
-
-      if (!body || !("user" in body) || !("token" in body)) {
-        throw new Error("Invalid response from the server.");
-      }
-
-      onSuccess?.(body);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate({
+      email: email.trim(),
+      password,
+    });
   };
+
+  const errorMessage =
+    formError ||
+    (loginMutation.isError
+      ? loginMutation.error instanceof Error
+        ? loginMutation.error.message
+        : "Something went wrong. Try again."
+      : "");
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-neutral-50 px-4 font-sans">
@@ -134,18 +96,18 @@ export default function LoginPage({
             />
           </label>
 
-          {error && (
+          {errorMessage && (
             <p className="mt-3 text-[12px] font-medium text-red-600">
-              {error}
+              {errorMessage}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loginMutation.isPending}
             className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-md bg-neutral-900 px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
           >
-            {loading ? "Signing in…" : "Continue"}
+            {loginMutation.isPending ? "Signing in…" : "Continue"}
           </button>
         </form>
 

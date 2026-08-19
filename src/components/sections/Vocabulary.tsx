@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, UploadCloud } from "lucide-react";
 
 import Card from "../ui/Card";
@@ -11,13 +12,14 @@ import { Th, Td, Row, RowMenu } from "../ui/Table";
 import { Dot, Pill } from "../ui/Badges";
 import BulkImportModal from "../ui/BulkImportModal";
 
-import { VOCAB, type VocabularyItem } from "../../data/mockData";
-
+import {
+  getVocabulary,
+  type VocabularyItem,
+} from "../../data/api";
 
 interface VocabularyProps {
   onCreate: () => void;
 }
-
 
 interface VocabularyImportRow {
   word: string;
@@ -26,7 +28,6 @@ interface VocabularyImportRow {
   image?: string;
   audio?: string;
 }
-
 
 const IMPORT_COLUMNS = [
   {
@@ -66,70 +67,39 @@ const IMPORT_COLUMNS = [
   example: string;
 }[];
 
-
-const truthy = (v?: string): boolean =>
-  ["yes", "true", "1", "y"].includes(
-    String(v).trim().toLowerCase()
-  );
-
-
 export default function Vocabulary({
   onCreate,
 }: VocabularyProps) {
+  const [bulkOpen, setBulkOpen] = useState(false);
 
-  const [vocab, setVocab] =
-    useState<VocabularyItem[]>(VOCAB);
-
-  const [bulkOpen, setBulkOpen] =
-    useState(false);
-
-
+  const {
+    data: vocab = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery<VocabularyItem[]>({
+    queryKey: ["vocabulary"],
+    queryFn: getVocabulary,
+  });
 
   const handleImport = (
-    rows: VocabularyImportRow[]
+    rows: VocabularyImportRow[],
   ) => {
+    console.log("Import rows:", rows);
 
-    const startId = vocab.length
-      ? Math.max(...vocab.map((v) => v.id)) + 1
-      : 1;
+    // We will connect this to the API bulk-import
+    // endpoint after the backend endpoint is ready.
 
-
-    const imported: VocabularyItem[] =
-      rows.map((r, i) => ({
-        id: startId + i,
-        word: r.word,
-        city: r.city,
-
-        difficulty:
-          r.difficulty === "Medium" ||
-          r.difficulty === "Hard"
-            ? r.difficulty
-            : "Easy",
-
-        image: truthy(r.image),
-        audio: truthy(r.audio),
-
-        status: "Draft",
-      }));
-
-
-    setVocab((prev) => [
-      ...prev,
-      ...imported,
-    ]);
+    setBulkOpen(false);
   };
-
-
 
   return (
     <div>
-
       <SectionHeader
         title="Vocabulary"
         description="Words learners match to images and audio inside each city."
         action={
           <div className="flex gap-2">
-
             <SecondaryButton
               onClick={() => setBulkOpen(true)}
             >
@@ -137,115 +107,130 @@ export default function Vocabulary({
               Bulk import
             </SecondaryButton>
 
-
-            <PrimaryButton
-              onClick={onCreate}
-            >
+            <PrimaryButton onClick={onCreate}>
               <Plus size={14} />
               Add vocabulary
             </PrimaryButton>
-
           </div>
         }
       />
 
-
       <Card>
+        {isLoading && (
+          <div className="p-6 text-sm text-neutral-500">
+            Loading vocabulary...
+          </div>
+        )}
 
-        <table className="w-full border-collapse">
+        {isError && (
+          <div className="p-6 text-sm text-red-500">
+            {error instanceof Error
+              ? error.message
+              : "Failed to load vocabulary."}
+          </div>
+        )}
 
-          <thead>
-            <tr>
-              <Th>Word</Th>
-              <Th>City</Th>
-              <Th>Difficulty</Th>
-              <Th>Image</Th>
-              <Th>Audio</Th>
-              <Th>Status</Th>
-              <Th className="w-10" />
-            </tr>
-          </thead>
+        {!isLoading && !isError && vocab.length === 0 && (
+          <div className="p-6 text-sm text-neutral-500">
+            No vocabulary found.
+          </div>
+        )}
 
+        {!isLoading && !isError && vocab.length > 0 && (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <Th>Word</Th>
+                <Th>City</Th>
+                <Th>Difficulty</Th>
+                <Th>Image</Th>
+                <Th>Audio</Th>
+                <Th>Status</Th>
+                <Th className="w-10" />
+              </tr>
+            </thead>
 
-          <tbody>
+            <tbody>
+              {vocab.map((vocabItem) => {
+                const hasImage = Boolean(
+                  vocabItem.imageUrl,
+                );
 
-            {vocab.map((v) => (
+                const hasAudio = Boolean(
+                  vocabItem.audioUrl,
+                );
 
-              <Row key={v.id}>
+                const status =
+                  hasImage && hasAudio
+                    ? "Published"
+                    : "Draft";
 
-                <Td className="font-medium text-neutral-900">
-                  {v.word}
-                </Td>
+                return (
+                  <Row key={vocabItem.id}>
+                    <Td className="font-medium text-neutral-900">
+                      {vocabItem.germanWord}
+                    </Td>
 
+                    <Td className="text-neutral-500">
+                      {vocabItem.cityId || "—"}
+                    </Td>
 
-                <Td className="text-neutral-500">
-                  {v.city}
-                </Td>
+                    <Td>
+                      <Pill
+                        tone={
+                          vocabItem.difficulty ===
+                          "Easy"
+                            ? "easy"
+                            : "medium"
+                        }
+                      >
+                        {vocabItem.difficulty ||
+                          "Easy"}
+                      </Pill>
+                    </Td>
 
+                    <Td>
+                      <span
+                        className={
+                          hasImage
+                            ? "text-neutral-700"
+                            : "text-neutral-300"
+                        }
+                      >
+                        {hasImage
+                          ? "Attached"
+                          : "Missing"}
+                      </span>
+                    </Td>
 
-                <Td>
-                  <Pill
-                    tone={
-                      v.difficulty === "Easy"
-                        ? "easy"
-                        : "medium"
-                    }
-                  >
-                    {v.difficulty}
-                  </Pill>
-                </Td>
+                    <Td>
+                      <span
+                        className={
+                          hasAudio
+                            ? "text-neutral-700"
+                            : "text-neutral-300"
+                        }
+                      >
+                        {hasAudio
+                          ? "Attached"
+                          : "Missing"}
+                      </span>
+                    </Td>
 
+                    <Td>
+                      <Dot status={status} />
+                    </Td>
 
-                <Td>
-                  <span
-                    className={
-                      v.image
-                        ? "text-neutral-700"
-                        : "text-neutral-300"
-                    }
-                  >
-                    {v.image
-                      ? "Attached"
-                      : "Missing"}
-                  </span>
-                </Td>
-
-
-                <Td>
-                  <span
-                    className={
-                      v.audio
-                        ? "text-neutral-700"
-                        : "text-neutral-300"
-                    }
-                  >
-                    {v.audio
-                      ? "Attached"
-                      : "Missing"}
-                  </span>
-                </Td>
-
-
-                <Td>
-                  <Dot status={v.status} />
-                </Td>
-
-
-                <Td>
-                  <RowMenu />
-                </Td>
-
-              </Row>
-
-            ))}
-
-          </tbody>
-
-        </table>
-
+                    <Td>
+                      <RowMenu />
+                    </Td>
+                  </Row>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </Card>
-
-
 
       <BulkImportModal<VocabularyImportRow>
         open={bulkOpen}
@@ -255,8 +240,6 @@ export default function Vocabulary({
         columns={IMPORT_COLUMNS}
         onImport={handleImport}
       />
-
-
     </div>
   );
 }

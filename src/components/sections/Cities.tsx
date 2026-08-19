@@ -1,12 +1,21 @@
 
 import { Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import Card from "../ui/Card";
 import { SectionHeader, PrimaryButton } from "../ui/SectionHeader";
 import { Th, Td, Row, RowMenu } from "../ui/Table";
 import { Dot } from "../ui/Badges";
-import { CITIES } from "../../data/mockData";
+import { getCities } from "../../data/api";
 
 export default function Cities({ onCreate }: { onCreate: () => void }) {
+    const {
+    data: cities = [],
+  } = useQuery({
+    queryKey: ["cities"],
+    queryFn: getCities,
+  });
+
+  console.log(cities);
   return (
     <div>
       <SectionHeader
@@ -31,11 +40,11 @@ export default function Cities({ onCreate }: { onCreate: () => void }) {
             </tr>
           </thead>
           <tbody>
-            {CITIES.map((c) => (
+            {cities.map((c) => (
               <Row key={c.id}>
                 <Td className="font-medium text-neutral-900">{c.name}</Td>
                 <Td className="text-neutral-500">{c.country}</Td>
-                <Td className="text-neutral-500">Level {c.level}</Td>
+                <Td className="text-neutral-500">Level {c.level?.name ?? "N/A"}</Td>
                 <Td className="text-neutral-500">{c.words}</Td>
                 <Td><Dot status={c.status} /></Td>
                 <Td><RowMenu /></Td>
