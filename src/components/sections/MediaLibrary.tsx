@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { Plus, UploadCloud, Music, FileImage } from "lucide-react";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import {
+  getImages,
+  uploadImages,
+  type MediaItem
+} from "../../data/api";
 
 import Card from "../ui/Card";
 import {
@@ -11,7 +22,6 @@ import {
 import { Th, Td, Row, RowMenu } from "../ui/Table";
 import MediaUploadModal from "../ui/MediaImportModal";
 
-import { MEDIA, type MediaItem } from "../../data/mockData";
 import type { UploadedMedia } from "../../types/media";
 
 
@@ -33,36 +43,45 @@ export default function MediaLibrary({
   onCreate,
 }: MediaLibraryProps) {
 
-  const [media, setMedia] = useState<MediaItem[]>(MEDIA);
+  const queryClient = useQueryClient();
+
+ 
 
   const [bulkOpen, setBulkOpen] = useState(false);
 
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+   const {
+    data: images = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["images"],
+    queryFn: getImages,
+  });
+
+    const uploadMutation =
+      useMutation({
+        mutationFn: uploadImages,
+  
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: ["images"],
+          });
+  
+          setUploadOpen(false);
+        },
+  
+        onError: (error) => {
+          console.error(
+            "Image upload failed:",
+            error,
+          );
+        },
+      });
 
 
-  const handleImport = (images: UploadedMedia[]) => {
-
-    const startId = media.length
-      ? Math.max(...media.map((m) => m.id)) + 1
-      : 1;
-
-
-    const imported: MediaItem[] = images.map(
-      (img, i) => ({
-        id: startId + i,
-        name: img.name,
-        type: "Image",
-        usedBy: "Unassigned",
-        date: today(),
-        url: img.url,
-      })
-    );
-
-
-    setMedia((prev) => [
-      ...prev,
-      ...imported,
-    ]);
-  };
 
 
 
@@ -76,7 +95,7 @@ export default function MediaLibrary({
           <div className="flex gap-2">
 
             <SecondaryButton
-              onClick={() => setBulkOpen(true)}
+              onClick={() => setUploadOpen(true)}
             >
               <UploadCloud size={14} />
               Bulk import
@@ -114,9 +133,9 @@ export default function MediaLibrary({
 
           <tbody>
 
-            {media.map((m) => (
+            {images.map((m) => (
 
-              <Row key={m.id}>
+              <Row key={m.key}>
 
                 <Td className="flex items-center gap-2 font-medium text-neutral-900">
 
@@ -186,9 +205,16 @@ export default function MediaLibrary({
 
 
       <MediaUploadModal
-        open={bulkOpen}
-        onClose={() => setBulkOpen(false)}
-        onImport={handleImport}
+        open={uploadOpen}
+        onClose={() =>
+          setUploadOpen(false)
+        }
+        onImport={(files) =>
+          uploadMutation.mutate(files)
+        }
+        isUploading={
+          uploadMutation.isPending
+        }
       />
 
     </div>

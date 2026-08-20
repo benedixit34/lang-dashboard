@@ -1,22 +1,23 @@
 import { useRef, useState, ChangeEvent } from "react";
 import { ImagePlus, Folder, X } from "lucide-react";
 import { PrimaryButton } from "./SectionHeader";
-import type { UploadedMedia } from "../../types/media";
+import type { MediaItem } from "../../data/api";
 
 
 interface MediaUploadModalProps {
   open: boolean;
   onClose: () => void;
-  onImport: (files: UploadedMedia[]) => void;
+  onImport: (files: File[]) => void;
+  isUploading?: boolean;
 }
 
 interface UploadFile {
   id: string;
+  file: File;
   name: string;
   size: number;
   url: string;
 }
-
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -49,12 +50,14 @@ export default function MediaUploadModal({
     );
 
 
-    const mapped: UploadFile[] = imageFiles.map((file) => ({
-      id: `${file.webkitRelativePath || file.name}-${file.size}-${file.lastModified}`,
-      name: file.webkitRelativePath || file.name,
-      size: file.size,
-      url: URL.createObjectURL(file),
-    }));
+   const mapped: UploadFile[] =
+  imageFiles.map((file) => ({
+    id: `${file.webkitRelativePath || file.name}-${file.size}-${file.lastModified}`,
+    file,
+    name: file.webkitRelativePath || file.name,
+    size: file.size,
+    url: URL.createObjectURL(file),
+  }));
 
 
     setFiles((prev) => {
@@ -119,16 +122,8 @@ const handleImport = () => {
   if (!files.length) return;
 
   onImport(
-    files.map(({ name, url, size }) => ({
-      name,
-      url,
-      size,
-      type: "Image",
-    }))
+    files.map((item) => item.file)
   );
-
-  setFiles([]);
-  onClose();
 };
 
 

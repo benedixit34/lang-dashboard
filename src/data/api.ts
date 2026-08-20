@@ -1,3 +1,6 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+
 const TOKEN_KEY = "auth_token";
 
 export function getToken(): string | null {
@@ -13,22 +16,27 @@ export function clearToken(): void {
 }
 
 
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL;
-
 async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit,
 ): Promise<T> {
+  const token = getToken();
+
   const response = await fetch(
     `${API_BASE_URL}${endpoint}`,
     {
+      ...options,
       headers: {
         "Content-Type": "application/json",
-        ...(options?.headers || {}),
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+
+        ...options?.headers,
       },
-      ...options,
     },
   );
 
@@ -43,9 +51,12 @@ async function apiFetch<T>(
     );
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
-
 
 export interface Level {
   id: string;
@@ -90,7 +101,7 @@ export interface VocabularyItem {
 }
 
 export interface MediaItem {
-  key: string;
+  key?: string;
   name: string;
   type: "Image" | "Audio";
   url: string;
@@ -173,6 +184,17 @@ export async function register(data: {
 
   return response.data;
 }
+
+
+export async function getCurrentUser(): Promise<AuthUser> {
+  const response = await apiFetch<{
+    success: boolean;
+    data: AuthUser;
+  }>("/auth/me");
+
+  return response.data;
+}
+
 
 export function logout(): void {
   clearToken();
@@ -331,10 +353,53 @@ export async function deleteVocabulary(
   });
 }
 
-// =========================
-// CATEGORIES
-// =========================
 
+// BULK IMPORT VOCABULARY
+export interface VocabularyImportRow {
+  itemId?: string;
+  categoryId?: string;
+  learningSetId?: string;
+  cityId?: string;
+  germanWord: string;
+  englishMeaning?: string;
+  article?: string;
+  wordType?: string;
+  difficulty?: string;
+  imageIdea?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+}
+
+export interface VocabularyImportResult {
+  imported: number;
+  skipped: number;
+  errors: number;
+  details?: {
+    row: number;
+    germanWord?: string;
+    reason: string;
+  }[];
+}
+
+export async function importVocabulary(
+  rows: VocabularyImportRow[],
+): Promise<VocabularyImportResult> {
+  const response = await apiFetch<{
+    success: boolean;
+    message?: string;
+    data: VocabularyImportResult;
+  }>("/vocabulary/import", {
+    method: "POST",
+    body: JSON.stringify({
+      rows,
+    }),
+  });
+
+  return response.data;
+}
+
+
+// CATEGORIES
 export async function getCategories(): Promise<
   Category[]
 > {
@@ -346,10 +411,8 @@ export async function getCategories(): Promise<
   return response.data;
 }
 
-// =========================
-// LEARNING SETS
-// =========================
 
+// LEARNING SETS
 export async function getLearningSets(): Promise<
   LearningSet[]
 > {
@@ -361,28 +424,28 @@ export async function getLearningSets(): Promise<
   return response.data;
 }
 
-// =========================
-// MEDIA
-// =========================
 
-export async function getImages(): Promise<
-  MediaItem[]
-> {
+
+// MEDIA
+export async function getImages(): Promise<MediaItem[]> {
   const response = await apiFetch<{
     success: boolean;
     data: {
       key: string;
       url: string;
+      date: string | undefined;
     }[];
+    count: number;
   }>("/media/images");
 
   return response.data.map((image) => ({
     key: image.key,
-    name:
-      image.key.split("/").pop() ||
-      image.key,
+    name: image.key.split("/").pop() || image.key,
     type: "Image",
     url: image.url,
+    ...(image.date
+      ? { date: image.date }
+      : {}),
   }));
 }
 
@@ -395,10 +458,8 @@ export async function deleteImage(
   });
 }
 
-// =========================
-// USERS
-// =========================
 
+// USERS
 export async function getUsers(): Promise<User[]> {
   const response = await apiFetch<{
     success: boolean;
@@ -406,4 +467,49 @@ export async function getUsers(): Promise<User[]> {
   }>("/users");
 
   return response.data;
+}
+
+
+//UPLOAD IMAGES
+export async function uploadImages(
+  files: File[],
+): Promise<MediaItem[]> {
+  const token = getToken();
+
+  const formData = new FormData();
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const response = await fetch(
+    `${API_BASE_URL}/media/upload/multiple`,
+    {
+      method: "POST",
+      headers: {
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => null);
+
+    throw new Error(
+      error?.message ||
+        error?.error ||
+        `Image upload failed: ${response.status}`,
+    );
+  }
+
+  const result = await response.json();
+
+  return result.data;
 }

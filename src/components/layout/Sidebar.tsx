@@ -1,5 +1,6 @@
 import { NAV } from "../../lib/nav";
 import type { Section } from "../../types"
+import { NavLink } from "react-router-dom";
 
 interface SidebarProps {
   active: Section;
@@ -18,8 +19,10 @@ export default function Sidebar({
           const isActive = active === item.key;
 
           return (
+            <NavLink
+            key={item.key}
+            to={`/dashboard/${item.key}`}>
             <button
-              key={item.key}
               onClick={() => onSelect(item.key)}
               className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors ${
                 isActive
@@ -33,6 +36,7 @@ export default function Sidebar({
               />
               {item.label}
             </button>
+            </NavLink>
           );
         })}
       </nav>
