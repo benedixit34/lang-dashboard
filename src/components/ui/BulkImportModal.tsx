@@ -23,7 +23,8 @@ interface BulkImportModalProps<T extends object> {
   title: string;
   description?: string;
   columns: CSVColumn<T>[];
-  onImport: (rows: T[]) => void;
+   onImport: (file: File) => void;
+   isImporting?: boolean;
 }
 
 export default function BulkImportModal<T extends object>({
@@ -33,10 +34,13 @@ export default function BulkImportModal<T extends object>({
   description,
   columns,
   onImport,
+  isImporting = false,
 }: BulkImportModalProps<T>) {
   const [raw, setRaw] = useState("");
   const [parsed, setParsed] =
     useState<ParseCSVResult<T> | null>(null);
+    const [selectedFile, setSelectedFile] =
+    useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +55,9 @@ export default function BulkImportModal<T extends object>({
     }
   };
 
-  const handleClose = () => {
+const handleClose = () => {
+    if (isImporting) return;
+
     reset();
     onClose();
   };
@@ -67,29 +73,73 @@ export default function BulkImportModal<T extends object>({
     setParsed(parseCSV<T>(text, columns));
   };
 
-  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (
+    e: ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
 
+    setSelectedFile(file);
+
+    const isExcel =
+      file.name.endsWith(".xlsx") ||
+      file.name.endsWith(".xls");
+
+    if (isExcel) {
+      setRaw("");
+      setParsed(null);
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = () => {
-      handleParse(String(reader.result ?? ""));
+      handleParse(
+        String(reader.result ?? ""),
+      );
     };
 
     reader.readAsText(file);
   };
 
-  const validRows = parsed?.rows.filter((r) => r.valid) ?? [];
-  const invalidRows = parsed?.rows.filter((r) => !r.valid) ?? [];
+  const validRows =
+    parsed?.rows.filter((r) => r.valid) ?? [];
+
+  const invalidRows =
+    parsed?.rows.filter((r) => !r.valid) ?? [];
 
   const handleImport = () => {
-    if (!validRows.length) return;
+    if (
+      !selectedFile ||
+      isImporting
+    ) {
+      return;
+    }
 
-    onImport(validRows.map((r) => r.data));
-    handleClose();
+    // CSV files must have at least one valid row.
+    // Excel files are sent directly to the backend
+    // because the frontend does not parse XLSX.
+    const isExcel =
+      selectedFile.name.endsWith(".xlsx") ||
+      selectedFile.name.endsWith(".xls");
+
+    if (!isExcel && !validRows.length) {
+      return;
+    }
+
+    onImport(selectedFile);
   };
+
+  const isExcelFile =
+    selectedFile?.name.endsWith(".xlsx") ||
+    selectedFile?.name.endsWith(".xls");
+
+  const canImport =
+    Boolean(selectedFile) &&
+    (isExcelFile || validRows.length > 0) &&
+    !isImporting;
+
 
 
   return (
@@ -267,9 +317,11 @@ export default function BulkImportModal<T extends object>({
 
           <PrimaryButton
             onClick={handleImport}
-            disabled={validRows.length === 0}
+            disabled={validRows.length === 0 || isImporting}
           >
-            Import {validRows.length} rows
+            {isImporting
+    ? "Importing..."
+    : `Import ${validRows.length} rows`}
           </PrimaryButton>
 
         </div>

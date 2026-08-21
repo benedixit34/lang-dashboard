@@ -382,20 +382,43 @@ export interface VocabularyImportResult {
 }
 
 export async function importVocabulary(
-  rows: VocabularyImportRow[],
+  file: File,
 ): Promise<VocabularyImportResult> {
-  const response = await apiFetch<{
-    success: boolean;
-    message?: string;
-    data: VocabularyImportResult;
-  }>("/vocabulary/import", {
-    method: "POST",
-    body: JSON.stringify({
-      rows,
-    }),
-  });
+  const token = getToken();
 
-  return response.data;
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/vocabulary/import`,
+    {
+      method: "POST",
+      headers: {
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => null);
+
+    throw new Error(
+      error?.message ||
+        `Vocabulary import failed: ${response.status}`,
+    );
+  }
+
+  const result = await response.json();
+
+  return result.data;
 }
 
 

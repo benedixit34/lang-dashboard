@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, UploadCloud } from "lucide-react";
 
 import Card from "../ui/Card";
@@ -14,51 +14,81 @@ import BulkImportModal from "../ui/BulkImportModal";
 
 import {
   getVocabulary,
+  importVocabulary,
   type VocabularyItem,
+  type VocabularyImportRow,
 } from "../../data/api";
 
 interface VocabularyProps {
   onCreate: () => void;
 }
 
-interface VocabularyImportRow {
-  word: string;
-  city: string;
-  difficulty?: string;
-  image?: string;
-  audio?: string;
-}
-
 const IMPORT_COLUMNS = [
   {
-    key: "word",
-    label: "Word",
+    key: "germanWord",
+    label: "German Word",
     required: true,
     example: "die Brücke",
   },
   {
-    key: "city",
-    label: "City",
-    required: true,
-    example: "Hamburg",
+    key: "englishMeaning",
+    label: "English Meaning",
+    required: false,
+    example: "the bridge",
+  },
+  {
+    key: "article",
+    label: "Article",
+    required: false,
+    example: "die",
+  },
+  {
+    key: "wordType",
+    label: "Word Type",
+    required: false,
+    example: "noun",
   },
   {
     key: "difficulty",
     label: "Difficulty",
     required: false,
-    example: "Medium",
+    example: "A1",
   },
   {
-    key: "image",
-    label: "Image attached",
+    key: "cityId",
+    label: "City ID",
     required: false,
-    example: "yes",
+    example: "city-uuid",
   },
   {
-    key: "audio",
-    label: "Audio attached",
+    key: "categoryId",
+    label: "Category ID",
     required: false,
-    example: "no",
+    example: "category-uuid",
+  },
+  {
+    key: "learningSetId",
+    label: "Learning Set ID",
+    required: false,
+    example: "learning-set-uuid",
+  },
+  {
+    key: "imageIdea",
+    label: "Image Idea",
+    required: false,
+    example: "A bridge over a river",
+  },
+  {
+    key: "imageUrl",
+    label: "Image URL",
+    required: false,
+    example: "https://example.com/bridge.jpg",
+  },
+  {
+    key: "audioUrl",
+    label: "Audio URL",
+    required: false,
+    example: "https://example.com/bridge.mp3",
   },
 ] satisfies {
   key: keyof VocabularyImportRow;
@@ -66,11 +96,9 @@ const IMPORT_COLUMNS = [
   required: boolean;
   example: string;
 }[];
-
-export default function Vocabulary({
-  onCreate,
-}: VocabularyProps) {
+export default function Vocabulary({ onCreate }: VocabularyProps) {
   const [bulkOpen, setBulkOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const {
     data: vocab = [],
@@ -82,15 +110,26 @@ export default function Vocabulary({
     queryFn: getVocabulary,
   });
 
-  const handleImport = (
-    rows: VocabularyImportRow[],
-  ) => {
-    console.log("Import rows:", rows);
+  const importMutation = useMutation({
+    mutationFn: (rows: VocabularyImportRow[]) => importVocabulary(rows),
 
-    // We will connect this to the API bulk-import
-    // endpoint after the backend endpoint is ready.
+    onSuccess: (result) => {
+      console.log("Vocabulary import successful:", result);
 
-    setBulkOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: ["vocabulary"],
+      });
+
+      setBulkOpen(false);
+    },
+
+    onError: (error) => {
+      console.error("Vocabulary import failed:", error);
+    },
+  });
+
+  const handleImport = (rows: VocabularyImportRow[]) => {
+    importMutation.mutate(rows);
   };
 
   return (
@@ -100,9 +139,7 @@ export default function Vocabulary({
         description="Words learners match to images and audio inside each city."
         action={
           <div className="flex gap-2">
-            <SecondaryButton
-              onClick={() => setBulkOpen(true)}
-            >
+            <SecondaryButton onClick={() => setBulkOpen(true)}>
               <UploadCloud size={14} />
               Bulk import
             </SecondaryButton>
@@ -152,18 +189,11 @@ export default function Vocabulary({
 
             <tbody>
               {vocab.map((vocabItem) => {
-                const hasImage = Boolean(
-                  vocabItem.imageUrl,
-                );
+                const hasImage = Boolean(vocabItem.imageUrl);
 
-                const hasAudio = Boolean(
-                  vocabItem.audioUrl,
-                );
+                const hasAudio = Boolean(vocabItem.audioUrl);
 
-                const status =
-                  hasImage && hasAudio
-                    ? "Published"
-                    : "Draft";
+                const status = hasImage && hasAudio ? "Published" : "Draft";
 
                 return (
                   <Row key={vocabItem.id}>
@@ -178,42 +208,30 @@ export default function Vocabulary({
                     <Td>
                       <Pill
                         tone={
-                          vocabItem.difficulty ===
-                          "Easy"
-                            ? "easy"
-                            : "medium"
+                          vocabItem.difficulty === "Easy" ? "easy" : "medium"
                         }
                       >
-                        {vocabItem.difficulty ||
-                          "Easy"}
+                        {vocabItem.difficulty || "Easy"}
                       </Pill>
                     </Td>
 
                     <Td>
                       <span
                         className={
-                          hasImage
-                            ? "text-neutral-700"
-                            : "text-neutral-300"
+                          hasImage ? "text-neutral-700" : "text-neutral-300"
                         }
                       >
-                        {hasImage
-                          ? "Attached"
-                          : "Missing"}
+                        {hasImage ? "Attached" : "Missing"}
                       </span>
                     </Td>
 
                     <Td>
                       <span
                         className={
-                          hasAudio
-                            ? "text-neutral-700"
-                            : "text-neutral-300"
+                          hasAudio ? "text-neutral-700" : "text-neutral-300"
                         }
                       >
-                        {hasAudio
-                          ? "Attached"
-                          : "Missing"}
+                        {hasAudio ? "Attached" : "Missing"}
                       </span>
                     </Td>
 
@@ -239,6 +257,7 @@ export default function Vocabulary({
         description="Paste rows or upload a CSV to add multiple words at once. New words start as Draft until media is attached."
         columns={IMPORT_COLUMNS}
         onImport={handleImport}
+        isImporting={importMutation.isPending}
       />
     </div>
   );

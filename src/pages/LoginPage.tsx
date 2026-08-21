@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+
+import { useNavigate } from "react-router-dom";
 import { login, type AuthResponse } from "../data/api"; 
 
 interface LoginPageProps {
@@ -14,11 +16,14 @@ export default function LoginPage({
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [formError, setFormError] = useState<string>("");
+  const navigate = useNavigate();
 
   const loginMutation = useMutation({
     mutationFn: login,
-    onSuccess: (result) => {
-      onSuccess?.(result);
+    onSuccess: () => {
+      navigate("/dashboard/overview", {
+        replace: true,
+      });
     },
   });
 
