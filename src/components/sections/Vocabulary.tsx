@@ -14,7 +14,7 @@ import BulkImportModal from "../ui/BulkImportModal";
 
 import {
   getVocabulary,
-  importVocabulary,
+  importVocabularyFromSpreadSheet,
   type VocabularyItem,
   type VocabularyImportRow,
 } from "../../data/api";
@@ -110,27 +110,36 @@ export default function Vocabulary({ onCreate }: VocabularyProps) {
     queryFn: getVocabulary,
   });
 
-  const importMutation = useMutation({
-    mutationFn: (rows: VocabularyImportRow[]) => importVocabulary(rows),
+const importMutation = useMutation({
+  mutationFn: (file: File) =>
+    importVocabularyFromSpreadSheet(file),
 
-    onSuccess: (result) => {
-      console.log("Vocabulary import successful:", result);
+  onSuccess: (result) => {
+    console.log(
+      "Vocabulary import successful:",
+      result,
+    );
 
-      queryClient.invalidateQueries({
-        queryKey: ["vocabulary"],
-      });
+    queryClient.invalidateQueries({
+      queryKey: ["vocabulary"],
+    });
 
-      setBulkOpen(false);
-    },
+    setBulkOpen(false);
+  },
 
-    onError: (error) => {
-      console.error("Vocabulary import failed:", error);
-    },
-  });
+  onError: (error) => {
+    console.error(
+      "Vocabulary import failed:",
+      error,
+    );
+  },
+});
 
-  const handleImport = (rows: VocabularyImportRow[]) => {
-    importMutation.mutate(rows);
-  };
+const handleImport = (file: File) => {
+  importMutation.mutate(file);
+};
+
+
 
   return (
     <div>

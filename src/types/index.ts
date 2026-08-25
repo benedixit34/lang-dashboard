@@ -5,6 +5,7 @@ import type { MouseEventHandler } from "react";
 export type Section =
   | "overview"
   | "cities"
+  | "categories"
   | "vocabulary"
   | "media"
   | "users"

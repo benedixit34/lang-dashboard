@@ -37,6 +37,16 @@ export const DRAWER_CONFIG = {
       },
     ],
   },
+  categories: {
+    title: "Create Category",
+    fields: [
+      {
+      label: "Category name",
+      type: "text",
+      placeholder: "e.g. Food & Drinks",
+    },
+  ],
+},
 
   vocabulary: {
     title: "Add Vocabulary",

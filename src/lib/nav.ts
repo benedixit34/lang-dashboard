@@ -19,6 +19,7 @@ interface NavItem {
 export const NAV: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
   { key: "cities", label: "Cities", icon: Building2 },
+  { key: "categories", label: "Categories", icon: BookOpen },
   { key: "vocabulary", label: "Vocabulary", icon: BookOpen },
   { key: "media", label: "Media Library", icon: ImageIcon },
   { key: "users", label: "Users", icon: Users },

@@ -1,6 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-
 const TOKEN_KEY = "auth_token";
 
 export function getToken(): string | null {
@@ -381,9 +380,9 @@ export interface VocabularyImportResult {
   }[];
 }
 
-export async function importVocabulary(
+export async function importVocabularyFromSpreadSheet(
   file: File,
-): Promise<VocabularyImportResult> {
+) {
   const token = getToken();
 
   const formData = new FormData();
@@ -412,13 +411,11 @@ export async function importVocabulary(
 
     throw new Error(
       error?.message ||
-        `Vocabulary import failed: ${response.status}`,
+        `Import failed: ${response.status}`,
     );
   }
 
-  const result = await response.json();
-
-  return result.data;
+  return response.json();
 }
 
 

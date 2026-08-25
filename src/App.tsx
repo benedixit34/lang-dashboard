@@ -11,25 +11,20 @@ import Vocabulary from "./components/sections/Vocabulary";
 import MediaLibrary from "./components/sections/MediaLibrary";
 import UsersSection from "./components/sections/Users";
 import SettingsSection from "./components/sections/Settings";
+import Categories from "./components/sections/Categories";
 
 import { DRAWER_CONFIG } from "./lib/drawerConfig";
 import { Section } from "./types";
 import LoginPage from "./pages/LoginPage";
 
-import {
-  getCurrentUser,
-  getToken,
-  setToken,
-} from "./data/api";
+import { getCurrentUser, getToken, setToken } from "./data/api";
 
 type DrawerType = keyof typeof DRAWER_CONFIG;
 
 function DashboardLayout() {
-  const [active, setActive] =
-    useState<Section>("overview");
+  const [active, setActive] = useState<Section>("overview");
 
-  const [drawer, setDrawer] =
-    useState<DrawerType | null>(null);
+  const [drawer, setDrawer] = useState<DrawerType | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -53,9 +48,7 @@ function DashboardLayout() {
   if (token && isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white">
-        <p className="text-sm text-neutral-500">
-          Loading...
-        </p>
+        <p className="text-sm text-neutral-500">Loading...</p>
       </div>
     );
   }
@@ -74,10 +67,7 @@ function DashboardLayout() {
           setToken(result.token);
 
           // Update the current-user query immediately.
-          queryClient.setQueryData(
-            ["current-user"],
-            result.user,
-          );
+          queryClient.setQueryData(["current-user"], result.user);
         }}
         onSwitchToSignup={() => {
           console.log("Switch to signup");
@@ -86,80 +76,53 @@ function DashboardLayout() {
     );
   }
 
-  const currentDrawer = drawer
-    ? DRAWER_CONFIG[drawer]
-    : null;
+  const currentDrawer = drawer ? DRAWER_CONFIG[drawer] : null;
 
   return (
     <div className="flex h-screen w-full flex-col bg-white font-sans text-neutral-900 antialiased">
       <TopBar />
 
       <div className="flex min-h-0 flex-1">
-        <Sidebar
-          active={active}
-          onSelect={setActive}
-        />
+        <Sidebar />
 
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto max-w-5xl">
             <Routes>
-            
-              <Route
-                path="overview"
-                element={<Overview />}
-              />
+              <Route path="overview" element={<Overview />} />
 
-            {/* Cities */}
+              {/* Cities */}
               <Route
                 path="cities"
+                element={<Cities onCreate={() => setDrawer("cities")} />}
+              />
+              {/* Categories */}
+              <Route
+                path="/dashboard/categories"
                 element={
-                  <Cities
-                    onCreate={() =>
-                      setDrawer("cities")
-                    }
-                  />
+                  <Categories onCreate={() => setDrawer("categories")} />
                 }
               />
 
-           {/* Vocabulary */}
+              {/* Vocabulary */}
               <Route
                 path="vocabulary"
                 element={
-                  <Vocabulary
-                    onCreate={() =>
-                      setDrawer("vocabulary")
-                    }
-                  />
+                  <Vocabulary onCreate={() => setDrawer("vocabulary")} />
                 }
               />
 
-             {/* Media */}
+              {/* Media */}
               <Route
                 path="media"
-                element={
-                  <MediaLibrary
-                    onCreate={() =>
-                      setDrawer("media")
-                    }
-                  />
-                }
+                element={<MediaLibrary onCreate={() => setDrawer("media")} />}
               />
 
               {/* Users */}
-              <Route
-                path="users"
-                element={<UsersSection />}
-              />
+              <Route path="users" element={<UsersSection />} />
 
               {/* Settings */}
-              <Route
-                path="settings"
-                element={<SettingsSection />}
-              />
-
-
-          
-          </Routes>
+              <Route path="settings" element={<SettingsSection />} />
+            </Routes>
           </div>
         </div>
       </div>
@@ -172,7 +135,8 @@ function DashboardLayout() {
       />
     </div>
   );
-}function ProtectedRoute() {
+}
+function ProtectedRoute() {
   const token = getToken();
 
   const {
@@ -193,9 +157,7 @@ function DashboardLayout() {
   if (token && isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white">
-        <p className="text-sm text-neutral-500">
-          Loading...
-        </p>
+        <p className="text-sm text-neutral-500">Loading...</p>
       </div>
     );
   }
@@ -204,12 +166,7 @@ function DashboardLayout() {
    * No token or invalid/expired token.
    */
   if (!token || isError || !user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return <DashboardLayout />;
@@ -227,48 +184,31 @@ export default function App() {
           element={
             <LoginPage
               onSuccess={(result) => {
-                console.log(
-                  "Logged in:",
-                  result,
-                );
+                console.log("Logged in:", result);
 
                 // Persist JWT
                 setToken(result.token);
 
                 // Immediately populate
                 // authenticated user
-                queryClient.setQueryData(
-                  ["current-user"],
-                  result.user,
-                );
+                queryClient.setQueryData(["current-user"], result.user);
               }}
               onSwitchToSignup={() => {
-                console.log(
-                  "Switch to signup",
-                );
+                console.log("Switch to signup");
               }}
             />
           }
         />
 
         {/* Protected dashboard */}
-        <Route
-          path="/dashboard/*"
-          element={<ProtectedRoute />}
-        />
+        <Route path="/dashboard/*" element={<ProtectedRoute />} />
 
         {/* Anything else */}
         <Route
           path="*"
-          element={
-            <Navigate
-              to="/dashboard/overview"
-              replace
-            />
-          }
+          element={<Navigate to="/dashboard/overview" replace />}
         />
       </Routes>
     </BrowserRouter>
   );
 }
-

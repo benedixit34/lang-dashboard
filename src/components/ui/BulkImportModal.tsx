@@ -5,6 +5,7 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import {
@@ -23,8 +24,10 @@ interface BulkImportModalProps<T extends object> {
   title: string;
   description?: string;
   columns: CSVColumn<T>[];
-   onImport: (file: File) => void;
-   isImporting?: boolean;
+
+  onImport: (file: File) => void;
+
+  isImporting?: boolean;
 }
 
 export default function BulkImportModal<T extends object>({
@@ -39,23 +42,26 @@ export default function BulkImportModal<T extends object>({
   const [raw, setRaw] = useState("");
   const [parsed, setParsed] =
     useState<ParseCSVResult<T> | null>(null);
-    const [selectedFile, setSelectedFile] =
+
+  const [selectedFile, setSelectedFile] =
     useState<File | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef =
+    useRef<HTMLInputElement>(null);
 
   if (!open) return null;
 
   const reset = () => {
     setRaw("");
     setParsed(null);
+    setSelectedFile(null);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-const handleClose = () => {
+  const handleClose = () => {
     if (isImporting) return;
 
     reset();
@@ -70,7 +76,12 @@ const handleClose = () => {
       return;
     }
 
-    setParsed(parseCSV<T>(text, columns));
+    setParsed(
+      parseCSV<T>(
+        text,
+        columns,
+      ),
+    );
   };
 
   const handleFile = (
@@ -82,75 +93,102 @@ const handleClose = () => {
 
     setSelectedFile(file);
 
-    const isExcel =
-      file.name.endsWith(".xlsx") ||
-      file.name.endsWith(".xls");
+    const fileName =
+      file.name.toLowerCase();
 
+    const isExcel =
+      fileName.endsWith(".xlsx") ||
+      fileName.endsWith(".xls");
+
+    const isCSV =
+      fileName.endsWith(".csv");
+
+    // Excel files are sent directly
+    // to the backend.
     if (isExcel) {
       setRaw("");
       setParsed(null);
       return;
     }
 
-    const reader = new FileReader();
+    // CSV files can be previewed
+    // in the frontend.
+    if (isCSV) {
+      const reader = new FileReader();
 
-    reader.onload = () => {
-      handleParse(
-        String(reader.result ?? ""),
-      );
-    };
+      reader.onload = () => {
+        handleParse(
+          String(reader.result ?? ""),
+        );
+      };
 
-    reader.readAsText(file);
-  };
+      reader.onerror = () => {
+        setRaw("");
+        setParsed(null);
+      };
 
-  const validRows =
-    parsed?.rows.filter((r) => r.valid) ?? [];
+      reader.readAsText(file);
 
-  const invalidRows =
-    parsed?.rows.filter((r) => !r.valid) ?? [];
-
-  const handleImport = () => {
-    if (
-      !selectedFile ||
-      isImporting
-    ) {
       return;
     }
 
-    // CSV files must have at least one valid row.
-    // Excel files are sent directly to the backend
-    // because the frontend does not parse XLSX.
-    const isExcel =
-      selectedFile.name.endsWith(".xlsx") ||
-      selectedFile.name.endsWith(".xls");
+    // Unsupported file
+    setSelectedFile(null);
+    setRaw("");
+    setParsed(null);
+  };
 
-    if (!isExcel && !validRows.length) {
+  const validRows =
+    parsed?.rows.filter(
+      (row) => row.valid,
+    ) ?? [];
+
+  const invalidRows =
+    parsed?.rows.filter(
+      (row) => !row.valid,
+    ) ?? [];
+
+  const isExcelFile =
+    selectedFile?.name
+      .toLowerCase()
+      .endsWith(".xlsx") ||
+    selectedFile?.name
+      .toLowerCase()
+      .endsWith(".xls");
+
+  const isCSVFile =
+    selectedFile?.name
+      .toLowerCase()
+      .endsWith(".csv");
+
+  const canImport =
+    Boolean(selectedFile) &&
+    !isImporting &&
+    (
+      isExcelFile ||
+      (isCSVFile && validRows.length > 0)
+    );
+
+  const handleImport = () => {
+    if (!selectedFile || !canImport) {
       return;
     }
 
     onImport(selectedFile);
   };
 
-  const isExcelFile =
-    selectedFile?.name.endsWith(".xlsx") ||
-    selectedFile?.name.endsWith(".xls");
-
-  const canImport =
-    Boolean(selectedFile) &&
-    (isExcelFile || validRows.length > 0) &&
-    !isImporting;
-
-
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-neutral-900/30"
         onClick={handleClose}
       />
 
+      {/* Modal */}
       <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border border-neutral-200 bg-white shadow-2xl">
 
+        {/* Header */}
         <div className="flex items-start justify-between border-b border-neutral-200 px-5 py-4">
           <div>
             <h2 className="text-[14px] font-semibold text-neutral-900">
@@ -165,169 +203,259 @@ const handleClose = () => {
           </div>
 
           <button
+            type="button"
             onClick={handleClose}
-            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-100"
+            disabled={isImporting}
+            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={16} />
           </button>
         </div>
 
-
+        {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
 
-          <div className="mb-3 flex items-center justify-between">
+          {/* Columns + template */}
+          <div className="mb-3 flex items-start justify-between gap-4">
 
             <div className="flex flex-wrap gap-1.5">
-              {columns.map((c) => (
+              {columns.map((column) => (
                 <span
-                  key={String(c.key)}
+                  key={String(column.key)}
                   className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    c.required
+                    column.required
                       ? "bg-neutral-100 text-neutral-700"
                       : "bg-neutral-50 text-neutral-400"
                   }`}
                 >
-                  {c.label}
-                  {!c.required && " (optional)"}
+                  {column.label}
+
+                  {!column.required &&
+                    " (optional)"}
                 </span>
               ))}
             </div>
 
-
             <button
+              type="button"
               onClick={() =>
                 downloadCSV(
                   "import-template.csv",
-                  buildTemplateCSV(columns)
+                  buildTemplateCSV(columns),
                 )
               }
-              className="flex items-center gap-1 text-[12px] text-neutral-600"
+              disabled={isImporting}
+              className="flex shrink-0 items-center gap-1 text-[12px] text-neutral-600 hover:text-neutral-900 disabled:opacity-50"
             >
               <Download size={12} />
-              Template
+              CSV Template
             </button>
-
           </div>
 
-
+          {/* CSV paste */}
           <textarea
             value={raw}
-            onChange={(e) => handleParse(e.target.value)}
+            onChange={(e) =>
+              handleParse(e.target.value)
+            }
+            disabled={
+              Boolean(selectedFile) ||
+              isImporting
+            }
             rows={6}
             placeholder="Paste CSV rows here"
-            className="w-full resize-none rounded-md border border-neutral-200 px-3 py-2 text-[12px]"
+            className="w-full resize-none rounded-md border border-neutral-200 px-3 py-2 text-[12px] text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100 disabled:bg-neutral-50"
           />
 
-
+          {/* File upload */}
           <div className="mt-2 flex items-center gap-3">
 
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-[12px]"
+              type="button"
+              onClick={() =>
+                fileInputRef.current?.click()
+              }
+              disabled={isImporting}
+              className="flex items-center gap-1.5 rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-[12px] font-medium text-neutral-600 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <UploadCloud size={13}/>
-              Upload .csv file
-            </button>
+              <UploadCloud size={13} />
 
+              Upload CSV or Excel
+            </button>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept="
+                .csv,
+                .xlsx,
+                .xls,
+                text/csv,
+                application/vnd.ms-excel,
+                application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+              "
               onChange={handleFile}
               className="hidden"
             />
 
-            {raw && (
-              <button
-                onClick={reset}
-                className="text-[12px] text-neutral-400"
-              >
-                Clear
-              </button>
-            )}
-
+            {(raw || selectedFile) &&
+              !isImporting && (
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="text-[12px] text-neutral-400 hover:text-neutral-700"
+                >
+                  Clear
+                </button>
+              )}
           </div>
 
+          {/* Selected Excel/CSV file */}
+          {selectedFile && (
+            <div className="mt-4 flex items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2.5">
 
+              <div className="flex items-center gap-2">
+
+                <FileSpreadsheet
+                  size={18}
+                  className="text-neutral-500"
+                />
+
+                <div>
+                  <p className="text-[12px] font-medium text-neutral-800">
+                    {selectedFile.name}
+                  </p>
+
+                  <p className="text-[11px] text-neutral-400">
+                    {(
+                      selectedFile.size /
+                      1024
+                    ).toFixed(1)}{" "}
+                    KB
+
+                    {isExcelFile &&
+                      " • Excel spreadsheet"}
+
+                    {isCSVFile &&
+                      " • CSV file"}
+                  </p>
+                </div>
+
+              </div>
+
+              {!isImporting && (
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="rounded-md p-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* CSV preview */}
           {parsed && (
             <div className="mt-4">
 
               <div className="mb-2 flex gap-3 text-[12px]">
 
                 <span className="flex items-center gap-1 text-emerald-600">
-                  <CheckCircle2 size={13}/>
+                  <CheckCircle2 size={13} />
                   {validRows.length} ready
                 </span>
 
-
                 {invalidRows.length > 0 && (
                   <span className="flex items-center gap-1 text-amber-600">
-                    <AlertCircle size={13}/>
+                    <AlertCircle size={13} />
                     {invalidRows.length} need review
                   </span>
                 )}
 
               </div>
 
-
-              <div className="rounded-md border border-neutral-200 overflow-auto">
+              <div className="overflow-auto rounded-md border border-neutral-200">
 
                 <table className="w-full">
 
                   <tbody>
-                    {parsed.rows.map((row, index) => (
-                      <tr key={index}>
-
-                        {columns.map((column) => (
-                          <td
-                            key={String(column.key)}
-                            className="px-2 py-1 text-[12px]"
-                          >
-                            {String(
-                              row.data[column.key] ?? "—"
-                            )}
-                          </td>
-                        ))}
-
-                      </tr>
-                    ))}
-
+                    {parsed.rows.map(
+                      (row, index) => (
+                        <tr
+                          key={index}
+                          className={
+                            row.valid
+                              ? ""
+                              : "bg-amber-50"
+                          }
+                        >
+                          {columns.map(
+                            (column) => (
+                              <td
+                                key={String(
+                                  column.key,
+                                )}
+                                className="px-2 py-1 text-[12px]"
+                              >
+                                {String(
+                                  row.data[
+                                    column.key
+                                  ] ?? "—",
+                                )}
+                              </td>
+                            ),
+                          )}
+                        </tr>
+                      ),
+                    )}
                   </tbody>
 
                 </table>
 
               </div>
-
             </div>
           )}
 
         </div>
 
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-neutral-200 px-5 py-4">
 
-        <div className="flex justify-end gap-2 border-t border-neutral-200 px-5 py-4">
-
-          <button
-            onClick={handleClose}
-            className="rounded-md border px-3 py-1.5 text-[13px]"
-          >
-            Cancel
-          </button>
-
-
-          <PrimaryButton
-            onClick={handleImport}
-            disabled={validRows.length === 0 || isImporting}
-          >
+          <span className="text-[12px] text-neutral-400">
             {isImporting
-    ? "Importing..."
-    : `Import ${validRows.length} rows`}
-          </PrimaryButton>
+              ? "Importing spreadsheet..."
+              : selectedFile
+                ? "File ready to import"
+                : "Select a CSV or Excel file"}
+          </span>
+
+          <div className="flex gap-2">
+
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isImporting}
+              className="rounded-md border border-neutral-200 px-3 py-1.5 text-[13px] font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <PrimaryButton
+              onClick={handleImport}
+              disabled={!canImport}
+            >
+              {isImporting
+                ? "Importing..."
+                : isExcelFile
+                  ? "Import Excel"
+                  : `Import ${validRows.length} rows`}
+            </PrimaryButton>
+
+          </div>
 
         </div>
-
       </div>
-
     </div>
   );
 }
