@@ -1,35 +1,52 @@
-"use client"
-
-import { useRef, useState } from "react"
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+
 import { PrimaryButton } from "./SectionHeader";
-import { FieldProps, DrawerProps } from "../../types";
+import type {
+  FieldProps,
+  DrawerProps,
+  DrawerFieldValue,
+} from "../../types";
 
 export function Field({
+  name,
   label,
   type = "text",
   placeholder,
   options = [],
-}: FieldProps) {
-
-
-  
+  value,
+  onChange
+}: FieldProps & {
+  onChange?: (value: string | number | boolean | File) => void;
+}) {
   return (
     <div className="space-y-2">
-      <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">
+      <label
+        htmlFor={name}
+        className="mb-1.5 block text-[12px] font-medium text-neutral-600"
+      >
         {label}
       </label>
 
       {type === "textarea" && (
         <textarea
+          id={name}
+          value={typeof value === "string" ? value : ""}
           placeholder={placeholder}
+          onChange={(e) => onChange?.(e.target.value)}
           className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
         />
       )}
 
       {type === "select" && (
-        <select className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100">
+        <select
+          id={name}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange?.(e.target.value)}
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+        >
           <option value="">Select...</option>
+
           {options.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -40,17 +57,56 @@ export function Field({
 
       {type === "file" && (
         <input
+          id={name}
           type="file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+
+            if (file) {
+              onChange?.(file.name);
+            }
+          }}
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800"
+        />
+      )}
+
+      {type === "checkbox" && (
+        <input
+          id={name}
+          type="checkbox"
+          checked={Boolean(value)}
+          onChange={(e) => onChange?.(e.target.checked)}
+          className="h-4 w-4"
+        />
+      )}
+
+      {type === "number" && (
+        <input
+          id={name}
+          type="number"
+          value={typeof value === "number" ? value : ""}
+          placeholder={placeholder}
+          onChange={(e) =>
+            onChange?.(
+              e.target.value === ""
+                ? ""
+                : Number(e.target.value)
+            )
+          }
           className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
         />
       )}
 
-      {type === "checkbox" && <input type="checkbox" className="h-4 w-4" />}
-
-      {type === "text" && (
+      {(type === "text" ||
+        type === "email" ||
+        type === "password" ||
+        type === "date") && (
         <input
-          type="text"
+          id={name}
+          type={type}
+          value={typeof value === "string" ? value : ""}
           placeholder={placeholder}
+          onChange={(e) => onChange?.(e.target.value)}
           className="w-full rounded-md border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
         />
       )}
@@ -58,14 +114,58 @@ export function Field({
   );
 }
 
-export default function Drawer({ open, onClose, title, fields }: DrawerProps) {
-  if (!open) return null;
+export default function Drawer({
+  open,
+  onClose,
+  title,
+  fields,
+  onSubmit,
+  isSubmitting = false,
+}: DrawerProps) {
+  const [formData, setFormData] =
+    useState<DrawerFieldValue>({});
+
+  /*
+   * Reset the form whenever a new drawer
+   * is opened.
+   */
+  useEffect(() => {
+    if (open) {
+      setFormData({});
+    }
+  }, [open, title]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handleChange = (
+    name: string,
+    value: string | number | boolean | File,
+  ) => {
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = () => {
+    onSubmit(formData);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-neutral-900/20" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-neutral-900/20"
+        onClick={() => {
+          if (!isSubmitting) {
+            onClose();
+          }
+        }}
+      />
 
-      <div className="relative flex h-full w-[380px] flex-col border-l border-neutral-200 bg-white shadow-xl">
+      <div className="relative flex h-full w-95 flex-col border-l border-neutral-200 bg-white shadow-xl">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
           <h2 className="text-[14px] font-semibold text-neutral-900">
             {title}
@@ -73,36 +173,49 @@ export default function Drawer({ open, onClose, title, fields }: DrawerProps) {
 
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={onClose}
-            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 disabled:opacity-50"
           >
             <X size={16} />
           </button>
         </div>
 
+        {/* Fields */}
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-          {fields.map((field) => (
-            <Field
-              key={field.label}
-              label={field.label}
-              type={field.type}
-              placeholder={field.placeholder}
-              options={field.options}
-              value={field.value}
-            />
-          ))}
+        {fields.map((field) => (
+  <Field
+    key={field.name}
+    {...field}
+    value={field.name ? formData[field.name] : undefined}
+    onChange={(value) => {
+      if (field.name) {
+        handleChange(field.name, value);
+      }
+    }}
+  />
+))}
         </div>
 
+        {/* Footer */}
         <div className="flex justify-end gap-2 border-t border-neutral-200 px-5 py-4">
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={onClose}
-            className="rounded-md border border-neutral-200 px-3 py-1.5 text-[13px] font-medium text-neutral-700 hover:bg-neutral-50"
+            className="rounded-md border border-neutral-200 px-3 py-1.5 text-[13px] font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
             Cancel
           </button>
 
-          <PrimaryButton onClick={onClose}>Save</PrimaryButton>
+          <PrimaryButton
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Saving..."
+              : "Save"}
+          </PrimaryButton>
         </div>
       </div>
     </div>

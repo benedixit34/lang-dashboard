@@ -432,6 +432,24 @@ export async function getCategories(): Promise<
 }
 
 
+export async function createCategory(
+  data: { name: string }
+): Promise<Category> {
+  const response = await apiFetch<{
+    success: boolean;
+    data: Category;
+  }>("/categories", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  return response.data;
+}
+
+
 // LEARNING SETS
 export async function getLearningSets(): Promise<
   LearningSet[]

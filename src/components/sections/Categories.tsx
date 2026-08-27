@@ -52,7 +52,7 @@ console.log(categories)
           </div>
         )}
 
-        {isError && (
+         {isError && (
           <div className="p-6 text-sm text-red-500">
             {error instanceof Error
               ? error.message
@@ -75,7 +75,7 @@ console.log(categories)
               <thead>
                 <tr>
                   <Th>Category</Th>
-                  <Th className="w-10"></Th>
+                  <Th className="w-10">Actions</Th>
                 </tr>
               </thead>
 

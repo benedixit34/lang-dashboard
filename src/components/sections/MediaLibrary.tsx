@@ -22,7 +22,6 @@ import {
 import { Th, Td, Row, RowMenu } from "../ui/Table";
 import MediaUploadModal from "../ui/MediaImportModal";
 
-import type { UploadedMedia } from "../../types/media";
 
 
 interface MediaLibraryProps {

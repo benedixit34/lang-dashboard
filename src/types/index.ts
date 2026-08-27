@@ -24,18 +24,25 @@ type FieldType =
   | "checkbox";
 
 export interface FieldProps {
+  name?: string;
   label: string;
   type: FieldType;
   placeholder?: string;
   options?: string[];
   required?: boolean;
-  value?: string | number | boolean;
+  value?: string | number | boolean | File;
 }
 
 
+export interface DrawerFieldValue {
+  [key: string]: string | boolean | number |  File | undefined;
+}
+
 export interface DrawerProps {
   open: boolean;
-  onClose: MouseEventHandler<HTMLButtonElement | HTMLDivElement>;
+  onClose: () => void;
   title: string;
-  fields: readonly FieldProps[];
+  fields: FieldProps[];
+  onSubmit: (data: DrawerFieldValue) => void;
+  isSubmitting?: boolean;
 }
